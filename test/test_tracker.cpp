@@ -529,13 +529,13 @@ bool MakeTrackerList(std::string str_tracker_path) {
 	std::vector<Tracker_Data> vec_tracker;
 	std::vector<std::string> vec_tracker_list;
 
-	std::string tracker_list_path;
-	tracker_list_path = str_tracker_path + "tracker_tmp";
-	std::ifstream file_tracker_list(tracker_list_path.c_str());
+	std::string tracker_tmp;
+	tracker_tmp = str_tracker_path + "tracker_tmp";
+	std::ifstream file_tracker_list(tracker_tmp.c_str());
 	std::istreambuf_iterator<char> beg(file_tracker_list), end;
 	std::string tracker_list(beg, end);
 	file_tracker_list.close();
-	remove(tracker_list_path.c_str());
+	remove(tracker_tmp.c_str());
 
 	char* ch_list = new char[strlen(tracker_list.c_str()) + 1];
 	strcpy(ch_list, tracker_list.c_str());
@@ -622,6 +622,13 @@ TORRENT_TEST(http_peers)
 	{
 		_mkdir(str_tracker_path.c_str());
 	}
+
+	std::string tracker_list_file_tmp;
+	tracker_list_file_tmp = str_tracker_path + "tracker_list_tmp";
+	std::string tracker_tmp;
+	tracker_tmp = str_tracker_path + "tracker_tmp";
+	remove(tracker_list_file_tmp.c_str());
+	remove(tracker_tmp.c_str());
 
 	bool b_quit = false;
 	while (!b_quit) {
@@ -714,8 +721,6 @@ TORRENT_TEST(http_peers)
 
 		_findclose(handle);
 
-		std::string tracker_list_file_tmp;
-		tracker_list_file_tmp = str_tracker_path + "tracker_list_tmp";
 		std::string tracker_list_file;
 		tracker_list_file = str_tracker_path + "tracker_list";
 		remove(tracker_list_file.c_str());
