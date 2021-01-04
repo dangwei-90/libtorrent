@@ -55,6 +55,15 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/socket_io.hpp"
 #endif
 
+#include <stdlib.h>
+#include <iostream>
+#include <fstream>
+
+#ifdef _WIN32
+#else
+#include <unistd.h>
+#endif
+
 namespace libtorrent {
 
 	std::map<address, udp_tracker_connection::connection_cache_entry>
@@ -634,6 +643,36 @@ namespace libtorrent {
 		std::list<address> ip_list;
 		std::transform(m_endpoints.begin(), m_endpoints.end(), std::back_inserter(ip_list)
 			, [](tcp::endpoint const& ep) { return ep.address(); } );
+
+		// save tracker in our list
+		if (num_peers > 0) {
+			char curr_path[1024];
+#ifdef _WIN32
+			TCHAR exe_path[1024] = { 0x00 };
+			::GetModuleFileName(NULL, exe_path, MAX_PATH);
+			GetCurrentDirectory(1024, curr_path);
+			int nAdd = strlen(curr_path);
+			if (curr_path[nAdd - 1] == '\\')
+			{
+				sprintf_s(curr_path, 1024, "%s", curr_path);
+			}
+			else
+			{
+				sprintf_s(curr_path, 1024, "%s\\", curr_path);
+			}
+#else	
+			getcwd(curr_path, 1024);
+#endif
+			sprintf_s(curr_path, 1024, "%s123456", curr_path);
+
+			std::string write_data = tracker_req().url + "#" + std::to_string(num_peers) + "###";
+			std::fstream sfile(curr_path, std::ios::app | std::ios::out | std::ios_base::binary);
+			sfile.write(write_data.c_str(), write_data.size());
+			sfile.close();
+		}
+		else {
+			// do nothing.
+		}
 
 		cb->tracker_response(tracker_req(), m_target.address(), ip_list, resp);
 

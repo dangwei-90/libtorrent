@@ -365,7 +365,7 @@ void test_udp_tracker(std::string const& iface, address tracker, tcp::endpoint c
 	*/
 
 	lt::error_code ec;
-	std::string torrent = "C:\\Users\\pc\\Desktop\\udp.torrent";
+	std::string torrent = "C:\\Users\\A\\Desktop\\udp.torrent";
 
 	auto ti = std::make_shared<lt::torrent_info>(torrent, ec);
 
@@ -384,7 +384,7 @@ void test_udp_tracker(std::string const& iface, address tracker, tcp::endpoint c
 		addp.flags &= ~torrent_flags::paused;
 		//addp.flags &= ~torrent_flags::auto_managed;
 		addp.flags &= ~torrent_flags::stop_when_ready;
-		addp.flags |= torrent_flags::seed_mode;
+		//addp.flags |= torrent_flags::seed_mode;
 		addp.ti = ti;
 		addp.save_path = "tmp1_tracker";
 		torrent_handle h = s->add_torrent(addp);
