@@ -434,6 +434,12 @@ int EXPORT main(int argc, char const* argv[])
 		if (filter && tests_to_run.count(_g_unit_tests[i].name) == 0)
 			continue;
 
+		// run our process. - dangwei
+		char* ch;
+		if (strstr(_g_unit_tests[i].name, "test_tracker.cpp.http_peers") == NULL) {
+			continue;
+		}
+
 		std::string const unit_dir = unit_dir_prefix + std::to_string(i);
 		error_code ec;
 		create_directory(unit_dir, ec);
@@ -555,6 +561,9 @@ int EXPORT main(int argc, char const* argv[])
 
 		if (redirect_stdout && t.output)
 			fclose(t.output);
+
+		// break - dangwei
+		break; 
 	}
 
 	if (redirect_stdout && old_stdout != -1) dup2(old_stdout, fileno(stdout));

@@ -644,7 +644,7 @@ namespace libtorrent {
 		std::transform(m_endpoints.begin(), m_endpoints.end(), std::back_inserter(ip_list)
 			, [](tcp::endpoint const& ep) { return ep.address(); } );
 
-		// save tracker in our list
+		// save tracker in our list - dangwei
 		if (num_peers > 0) {
 			char curr_path[1024];
 #ifdef _WIN32
