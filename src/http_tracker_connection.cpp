@@ -65,6 +65,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
+#include <tchar.h>
+
 
 namespace libtorrent {
 
@@ -465,24 +467,14 @@ namespace libtorrent {
 			if (num_peers > 0) {
 				char curr_path[1024];
 #ifdef _WIN32
-				TCHAR exe_path[1024] = { 0x00 };
-				::GetModuleFileName(NULL, exe_path, MAX_PATH);
-				GetCurrentDirectory(1024, curr_path);
-				int nAdd = strlen(curr_path);
-				if (curr_path[nAdd - 1] == '\\')
-				{
-					sprintf_s(curr_path, 1024, "%s", curr_path);
-				}
-				else
-				{
-					sprintf_s(curr_path, 1024, "%s\\", curr_path);
-				}
+				::GetModuleFileName(NULL, curr_path, MAX_PATH);
+				(_tcsrchr(curr_path, '\\'))[1] = 0;
 #else	
 				getcwd(curr_path, 1024);
 #endif
-				sprintf(curr_path, "%s123456", curr_path);
+				sprintf(curr_path, "%s\\tracker_path\\tracker_tmp", curr_path);
 
-				std::string write_data = tracker_req().url + "#" + std::to_string(num_peers) + "###";
+				std::string write_data = tracker_req().url + "*" + std::to_string(num_peers) + "#";
 				std::fstream sfile(curr_path, std::ios::app | std::ios::out | std::ios_base::binary);
 				sfile.write(write_data.c_str(), write_data.size());
 				sfile.close();

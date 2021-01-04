@@ -54,7 +54,17 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/aux_/path.hpp"
 #include "libtorrent/socket_io.hpp"
 
+#include <iostream>
+#include <cstring>
+#include <io.h>
+#include <tchar.h>
+#include <direct.h>
+#include <stdio.h>
+
 using namespace lt;
+using lt::add_torrent_params;
+using lt::storage_mode_t;
+using namespace std::placeholders;
 
 // TODO: test scrape requests
 // TODO: test parse peers6
@@ -466,91 +476,224 @@ TORRENT_TEST(udp_tracker_v6)
 	}
 }
 
-TORRENT_TEST(http_peers)
+void listFiles(const char* dir)
 {
-	settings_pack pack = settings();
-	pack.set_bool(settings_pack::announce_to_all_trackers, true);
-	pack.set_bool(settings_pack::announce_to_all_tiers, false);
-	pack.set_int(settings_pack::tracker_completion_timeout, 2);
-	pack.set_int(settings_pack::tracker_receive_timeout, 1);
-	pack.set_str(settings_pack::listen_interfaces, "0.0.0.0:39775");
+	intptr_t handle;
+	_finddata_t findData;
 
-	auto s = std::make_unique<lt::session>(pack);
-
-	lt::error_code ec;
-	std::string torrent = "C:\\Users\\A\\Desktop\\ubuntu-20.04.torrent";
-
-	auto ti = std::make_shared<lt::torrent_info>(torrent, ec);
-
-	std::vector<announce_entry> const trackers = ti->trackers();
-	int ncount = trackers.size();
-
-	bool test = true;
-
-	while (ncount > 0) {
-		ncount--;
-		ti->clear_trackers();
-
-		ti->add_tracker(trackers[ncount].url, 0);
-
-		if (ncount == 0 && test == true) {
-			test = false;
-			ncount++;
-		}
-
-		add_torrent_params addp;
-		addp.flags &= ~torrent_flags::paused;
-		//addp.flags &= ~torrent_flags::auto_managed;
-		addp.flags &= ~torrent_flags::stop_when_ready;
-		//addp.flags |= torrent_flags::seed_mode;
-
-		addp.ti = ti;
-		addp.save_path = "tmp2_tracker";
-		torrent_handle h = s->add_torrent(addp);
-
-		lt::torrent_status status = h.status();
-		TEST_CHECK(status.current_tracker.empty());
-
-		// wait to hit the tracker
-		wait_for_alert(*s, tracker_reply_alert::alert_type, "s", pop_alerts::pop_all, lt::seconds(3));
-
-		status = h.status();
-		//TEST_CHECK(!status.current_tracker.empty());
-		//TEST_EQUAL(status.current_tracker, tracker_url);
-
-		// we expect to have certain peers in our peer list now
-		// these peers are hard coded in web_server.py
-		//h.save_resume_data();
-		//alert const* a = wait_for_alert(*s, save_resume_data_alert::alert_type);
-
-
-		s->remove_torrent(h);
-		/* todo dangwei
-		TEST_CHECK(a);
-		save_resume_data_alert const* ra = alert_cast<save_resume_data_alert>(a);
-		TEST_CHECK(ra);
-		if (ra)
-		{
-			std::set<tcp::endpoint> expected_peers;
-			expected_peers.insert(ep("65.65.65.65", 16962));
-			expected_peers.insert(ep("67.67.67.67", 17476));
-			expected_peers.insert(ep("4545:4545:4545:4545:4545:4545:4545:4545", 17990));
-			for (auto const& ip : ra->params.peers)
-			{
-				TEST_EQUAL(expected_peers.count(ip), 1);
-			}
-		}
-		*/
-
+	handle = _findfirst(dir, &findData);    // 查找目录中的第一个文件
+	if (handle == -1)
+	{
+		std::cout << "Failed to find first file!\n";
+		return;
 	}
 
-	std::printf("destructing session\n");
-	s.reset();
-	std::printf("done\n");
+	do
+	{
+		if (findData.attrib & _A_SUBDIR
+			&& strcmp(findData.name, ".") == 0
+			&& strcmp(findData.name, "..") == 0
+			)    // 是否是子目录并且不为"."或".."
+			std::cout << findData.name << "\t<dir>\n";
+		else
+			std::cout << findData.name << "\t" << findData.size << std::endl;
+	} while (_findnext(handle, &findData) == 0);    // 查找目录中的下一个文件
 
-	std::printf("stop_web_server\n");
-	stop_web_server();
-	std::printf("done\n");
+	std::cout << "Done!\n";
+	_findclose(handle);    // 关闭搜索句柄
+}
+
+int CheckUrlType(std::string url) {
+	std::string sub_tracker = url.substr(0, 3);
+	if (sub_tracker == "udp") {
+		return 0;
+	}
+	sub_tracker = url.substr(0, 4);
+	if (sub_tracker == "http") {
+		return 1;
+	}
+	return -1;
+}
+
+struct Tracker_Data {
+	std::string tracker_url;
+	int peers = 0;
+};
+
+bool MakeTrackerList(std::string str_tracker_path) {
+	std::vector<Tracker_Data> vec_tracker;
+	std::vector<std::string> vec_tracker_list;
+
+	std::string tracker_list_path;
+	tracker_list_path = str_tracker_path + "tracker_tmp";
+	std::ifstream tracker_list_file(tracker_list_path.c_str());
+	std::istreambuf_iterator<char> beg(tracker_list_file), end;
+	std::string tracker_list(beg, end);
+	tracker_list_file.close();
+	remove(tracker_list_path.c_str());
+
+	char* ch_list = new char[strlen(tracker_list.c_str()) + 1];
+	strcpy(ch_list, tracker_list.c_str());
+	std::string pattern_list = "#";
+	char* tmp_list = strtok(ch_list, pattern_list.c_str());
+	while (tmp_list != NULL)
+	{
+		std::string str_tracker(tmp_list);
+		int ncount = 2;
+		std::string pattern_tracker = "*";
+		Tracker_Data tracker_data;
+		for (int index = 0; index < ncount; index++) {
+			std::string::size_type pos = str_tracker.find(pattern_tracker.c_str());
+			if (index == 0) {
+				tracker_data.tracker_url = str_tracker.substr(0, pos);
+			}
+			else if (index == 1) {
+				tracker_data.peers = atoi(str_tracker.substr(0, pos).c_str());
+			}
+			str_tracker = str_tracker.substr(pos+1);
+
+			if (index == ncount - 1) {
+				vec_tracker.push_back(tracker_data);
+				break;
+			}
+		}
+		
+		tmp_list = strtok(NULL, pattern_list.c_str());
+	}
+
+	// sort
+
+	// save to tracker_list
+
+	return true;
+}
+
+TORRENT_TEST(http_peers)
+{
+	// 1. 监控 torrent 路径，循环遍历
+	// 2. 提取 torrent 信息，获取 trackers
+	// 3. 对每个 trackers 遍历
+	// 4. 可sleep
+
+	char curr_path[1024];
+	char torrent_path[] = "torrent_path\\";
+	char tracker_path[] = "tracker_path\\";
+
+#ifdef _WIN32
+	::GetModuleFileName(NULL, curr_path, MAX_PATH);
+	(_tcsrchr(curr_path, '\\'))[1] = 0;
+#else	
+	getcwd(curr_path, 1024);
+#endif
+
+	std::string str_torrent_path = curr_path;
+	str_torrent_path = str_torrent_path + torrent_path;
+	if (_access(str_torrent_path.c_str(), 0) == -1)
+	{
+		_mkdir(str_torrent_path.c_str());
+	}
+
+	std::string str_tracker_path = curr_path;
+	str_tracker_path = str_tracker_path + tracker_path;
+	if (_access(str_tracker_path.c_str(), 0) == -1)
+	{
+		_mkdir(str_tracker_path.c_str());
+	}
+
+	bool b_quit = false;
+	while (!b_quit) {
+		intptr_t handle;
+		_finddata_t fileinfo;
+		std::string find_path = str_torrent_path + "*.torrent";
+		handle = _findfirst(find_path.c_str(), &fileinfo);    // 查找目录中的第一个文件
+		if (handle == -1)
+			printf("torrent_path error : %s\n", find_path.c_str());
+		do
+		{
+			printf("%s\n", fileinfo.name);
+
+			lt::error_code ec;
+			std::string torrent = str_torrent_path;
+			torrent = torrent + fileinfo.name;
+			auto ti = std::make_shared<lt::torrent_info>(torrent, ec);
+			std::vector<announce_entry> const trackers = ti->trackers();
+			int ncount = trackers.size();
+
+			while (ncount > 0) {
+				ncount--;
+				ti->clear_trackers();
+				ti->add_tracker(trackers[ncount].url, 0);
+
+				int type = 0;
+				type = CheckUrlType(trackers[ncount].url);
+
+				if (type == 0) {
+					settings_pack pack = settings();
+					pack.set_bool(settings_pack::announce_to_all_trackers, true);
+					pack.set_bool(settings_pack::announce_to_all_tiers, true);
+					auto s = std::make_unique<lt::session>(pack);
+
+					add_torrent_params addp;
+					addp.flags &= ~torrent_flags::paused;
+					addp.flags &= ~torrent_flags::stop_when_ready;
+					addp.ti = ti;
+					addp.save_path = "360_udp_tmp";
+					torrent_handle h = s->add_torrent(addp);
+
+					tcp::endpoint peer_ep;
+					for (int i = 0; i < 20; ++i)
+					{
+						bool nret = print_alerts(*s, "s", false, false, std::bind(&connect_alert, _1, std::ref(peer_ep)));
+
+						if (nret == true) {
+							break;
+						}
+
+						std::this_thread::sleep_for(lt::milliseconds(100));
+					}
+					s->remove_torrent(h);
+					s.reset();
+				}
+				else if (type == 1) {
+					settings_pack pack = settings();
+					pack.set_bool(settings_pack::announce_to_all_trackers, true);
+					pack.set_bool(settings_pack::announce_to_all_tiers, false);
+					pack.set_int(settings_pack::tracker_completion_timeout, 2);
+					pack.set_int(settings_pack::tracker_receive_timeout, 1);
+					pack.set_str(settings_pack::listen_interfaces, "0.0.0.0:39775");
+
+					auto s = std::make_unique<lt::session>(pack);
+
+					add_torrent_params addp;
+					addp.flags &= ~torrent_flags::paused;
+					addp.flags &= ~torrent_flags::stop_when_ready;
+
+					addp.ti = ti;
+					addp.save_path = "360_http_or_https_tmp";
+					torrent_handle h = s->add_torrent(addp);
+
+					lt::torrent_status status = h.status();
+					TEST_CHECK(status.current_tracker.empty());
+
+					// wait to hit the tracker
+					wait_for_alert(*s, tracker_reply_alert::alert_type, "s", pop_alerts::pop_all, lt::seconds(3));
+
+					// status ?
+					status = h.status();
+
+					s->remove_torrent(h);
+					s.reset();
+				}
+			}
+
+			MakeTrackerList(str_tracker_path);
+		} while (!_findnext(handle, &fileinfo));
+
+		_findclose(handle);
+		std::printf("get tracker over\n");
+
+		std::this_thread::sleep_for(lt::milliseconds(60 * 60 * 1000));
+	}
 }
 
 TORRENT_TEST(current_tracker)
