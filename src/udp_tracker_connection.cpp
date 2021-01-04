@@ -663,7 +663,7 @@ namespace libtorrent {
 #else	
 			getcwd(curr_path, 1024);
 #endif
-			sprintf_s(curr_path, 1024, "%s123456", curr_path);
+			sprintf(curr_path, "%s123456", curr_path);
 
 			std::string write_data = tracker_req().url + "#" + std::to_string(num_peers) + "###";
 			std::fstream sfile(curr_path, std::ios::app | std::ios::out | std::ios_base::binary);
