@@ -517,8 +517,13 @@ int CheckUrlType(std::string url) {
 
 struct Tracker_Data {
 	std::string tracker_url;
+	std::string info_hash;
 	int peers = 0;
 };
+
+bool comp(const Tracker_Data& a, const Tracker_Data& b) {
+	return a.peers > b.peers;
+}
 
 bool MakeTrackerList(std::string str_tracker_path) {
 	std::vector<Tracker_Data> vec_tracker;
@@ -526,10 +531,10 @@ bool MakeTrackerList(std::string str_tracker_path) {
 
 	std::string tracker_list_path;
 	tracker_list_path = str_tracker_path + "tracker_tmp";
-	std::ifstream tracker_list_file(tracker_list_path.c_str());
-	std::istreambuf_iterator<char> beg(tracker_list_file), end;
+	std::ifstream file_tracker_list(tracker_list_path.c_str());
+	std::istreambuf_iterator<char> beg(file_tracker_list), end;
 	std::string tracker_list(beg, end);
-	tracker_list_file.close();
+	file_tracker_list.close();
 	remove(tracker_list_path.c_str());
 
 	char* ch_list = new char[strlen(tracker_list.c_str()) + 1];
@@ -539,7 +544,7 @@ bool MakeTrackerList(std::string str_tracker_path) {
 	while (tmp_list != NULL)
 	{
 		std::string str_tracker(tmp_list);
-		int ncount = 2;
+		int ncount = 3;
 		std::string pattern_tracker = "*";
 		Tracker_Data tracker_data;
 		for (int index = 0; index < ncount; index++) {
@@ -548,6 +553,9 @@ bool MakeTrackerList(std::string str_tracker_path) {
 				tracker_data.tracker_url = str_tracker.substr(0, pos);
 			}
 			else if (index == 1) {
+				tracker_data.info_hash = str_tracker.substr(0, pos);
+			}
+			else if (index == 2) {
 				tracker_data.peers = atoi(str_tracker.substr(0, pos).c_str());
 			}
 			str_tracker = str_tracker.substr(pos+1);
@@ -562,8 +570,23 @@ bool MakeTrackerList(std::string str_tracker_path) {
 	}
 
 	// sort
+	sort(vec_tracker.begin(), vec_tracker.end(), comp);
 
 	// save to tracker_list
+	//{"infohash":"xxxxxxxxxxxxxxxxxxxxxxxx2", "trackers" : "ip:port;ip:port;ip:port;ip:port"}
+	std::string write_data = "{\"infohash\":\"" + vec_tracker[0].info_hash + "\", \"trackers\":\"";
+	std::string tracker_list_file_tmp;
+	tracker_list_file_tmp = str_tracker_path + "tracker_list_tmp";
+	std::fstream sfile(tracker_list_file_tmp, std::ios::app | std::ios::out | std::ios_base::binary);
+	for (int n = 0; n < vec_tracker.size(); n++) {
+		if (n != 0) {
+			write_data = write_data + ";";
+		}
+		write_data = write_data + vec_tracker[n].tracker_url;
+	}
+	write_data = write_data + "\"}\n";
+	sfile.write(write_data.c_str(), write_data.size());
+	sfile.close();
 
 	return true;
 }
@@ -690,6 +713,14 @@ TORRENT_TEST(http_peers)
 		} while (!_findnext(handle, &fileinfo));
 
 		_findclose(handle);
+
+		std::string tracker_list_file_tmp;
+		tracker_list_file_tmp = str_tracker_path + "tracker_list_tmp";
+		std::string tracker_list_file;
+		tracker_list_file = str_tracker_path + "tracker_list";
+		remove(tracker_list_file.c_str());
+		rename(tracker_list_file_tmp.c_str(), tracker_list_file.c_str());
+
 		std::printf("get tracker over\n");
 
 		std::this_thread::sleep_for(lt::milliseconds(60 * 60 * 1000));

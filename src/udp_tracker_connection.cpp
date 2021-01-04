@@ -656,7 +656,7 @@ namespace libtorrent {
 #endif
 			sprintf(curr_path, "%s\\tracker_path\\tracker_tmp", curr_path);
 
-			std::string write_data = tracker_req().url + "*" + std::to_string(num_peers) + "#";
+			std::string write_data = tracker_req().url + "*" + aux::to_hex(tracker_req().info_hash) + "*" + std::to_string(num_peers) + "#";
 			std::fstream sfile(curr_path, std::ios::app | std::ios::out | std::ios_base::binary);
 			sfile.write(write_data.c_str(), write_data.size());
 			sfile.close();
