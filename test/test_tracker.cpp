@@ -519,6 +519,7 @@ struct Tracker_Data {
 	std::string tracker_url;
 	std::string info_hash;
 	int peers = 0;
+	int complete = 0;
 };
 
 bool comp(const Tracker_Data& a, const Tracker_Data& b) {
@@ -558,6 +559,9 @@ bool MakeTrackerList(std::string str_tracker_path) {
 			else if (index == 2) {
 				tracker_data.peers = atoi(str_tracker.substr(0, pos).c_str());
 			}
+			else if (index == 3) {
+				tracker_data.complete = atoi(str_tracker.substr(0, pos).c_str());
+			}
 			str_tracker = str_tracker.substr(pos+1);
 
 			if (index == ncount - 1) {
@@ -567,6 +571,10 @@ bool MakeTrackerList(std::string str_tracker_path) {
 		}
 		
 		tmp_list = strtok(NULL, pattern_list.c_str());
+	}
+
+	if (vec_tracker.size() == 0) {
+		return false;
 	}
 
 	// sort
