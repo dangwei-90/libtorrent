@@ -61,8 +61,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #else
 #include <dirent.h>
 #endif
+#ifdef _WIN32
 #include <tchar.h>
 #include <direct.h>
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
 #include <stdio.h>
 
 using namespace lt;
@@ -480,33 +485,6 @@ TORRENT_TEST(udp_tracker_v6)
 	}
 }
 
-void listFiles(const char* dir)
-{
-	intptr_t handle;
-	_finddata_t findData;
-
-	handle = _findfirst(dir, &findData);    // 查找目录中的第一个文件
-	if (handle == -1)
-	{
-		std::cout << "Failed to find first file!\n";
-		return;
-	}
-
-	do
-	{
-		if (findData.attrib & _A_SUBDIR
-			&& strcmp(findData.name, ".") == 0
-			&& strcmp(findData.name, "..") == 0
-			)    // 是否是子目录并且不为"."或".."
-			std::cout << findData.name << "\t<dir>\n";
-		else
-			std::cout << findData.name << "\t" << findData.size << std::endl;
-	} while (_findnext(handle, &findData) == 0);    // 查找目录中的下一个文件
-
-	std::cout << "Done!\n";
-	_findclose(handle);    // 关闭搜索句柄
-}
-
 int CheckUrlType(std::string url) {
 	std::string sub_tracker = url.substr(0, 3);
 	if (sub_tracker == "udp") {
@@ -623,17 +601,28 @@ TORRENT_TEST(http_peers)
 
 	std::string str_torrent_path = curr_path;
 	str_torrent_path = str_torrent_path + torrent_path;
+	std::string str_tracker_path = curr_path;
+	str_tracker_path = str_tracker_path + tracker_path;
+
+#ifdef _WIN32
 	if (_access(str_torrent_path.c_str(), 0) == -1)
 	{
 		_mkdir(str_torrent_path.c_str());
 	}
-
-	std::string str_tracker_path = curr_path;
-	str_tracker_path = str_tracker_path + tracker_path;
 	if (_access(str_tracker_path.c_str(), 0) == -1)
 	{
 		_mkdir(str_tracker_path.c_str());
 	}
+#else
+	if (access(str_torrent_path.c_str(), F_OK) == -1)
+	{
+		mkdir(str_torrent_path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+	}
+	if (access(str_tracker_path.c_str(), F_OK) == -1)
+	{
+		mkdir(str_tracker_path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+	}
+#endif
 
 	std::string tracker_list_file_tmp;
 	tracker_list_file_tmp = str_tracker_path + "tracker_list_tmp";

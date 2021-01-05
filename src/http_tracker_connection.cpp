@@ -65,7 +65,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
+
+#ifdef _WIN32
 #include <tchar.h>
+#else
+#include <unistd.h>
+#endif
 
 
 namespace libtorrent {

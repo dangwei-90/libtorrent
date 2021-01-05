@@ -58,9 +58,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
-#include <tchar.h>
 
 #ifdef _WIN32
+#include <tchar.h>
 #else
 #include <unistd.h>
 #endif
