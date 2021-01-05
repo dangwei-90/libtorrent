@@ -504,6 +504,130 @@ struct Tracker_Data {
 	int complete = 0;
 };
 
+struct Bad_Tracker_List {
+	std::string tracker_url;
+	int times = 0;
+
+	bool operator == (const std::string& e) {
+		return (this->tracker_url == e);
+	}
+};
+
+bool FindInBadTrackerList(std::vector<Bad_Tracker_List>& bad_trackerlist, std::string tracker_url) {
+	std::vector<Bad_Tracker_List>::iterator result = std::find(bad_trackerlist.begin(), bad_trackerlist.end(), tracker_url);
+	if (result != bad_trackerlist.end()) {
+	  // find
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+bool CheckBadTrackerList(std::string str_tracker_path, std::vector<Bad_Tracker_List>& bad_trackerlist, int& cur_index, std::string tracker_url) {
+	std::string tracker_tmp;
+	tracker_tmp = str_tracker_path + "tracker_tmp";
+	std::ifstream file_tracker_list(tracker_tmp.c_str());
+	std::istreambuf_iterator<char> beg(file_tracker_list), end;
+	std::string tracker_list(beg, end);
+	file_tracker_list.close();
+
+	if (!tracker_list.empty()) {
+		// check if tracker_url in the list or not.
+		std::string::size_type pos = tracker_list.find(tracker_url.c_str());
+		if (pos != -1) {
+			// success, not need push.
+			return true;
+		}
+	}
+
+	Bad_Tracker_List bad_tracker_data;
+	bad_tracker_data.tracker_url = tracker_url;
+
+	if (bad_trackerlist.size() < 1000) {
+		bad_trackerlist.push_back(bad_tracker_data);
+		cur_index = bad_trackerlist.size();
+	}
+	else {
+		cur_index = cur_index % 1000;
+		bad_trackerlist[cur_index] = bad_tracker_data;
+		cur_index++;
+	}
+
+	return true;
+}
+
+bool GetBadTrackerList(std::string str_tracker_path, std::vector<Bad_Tracker_List>& bad_trackerlist, int& cur_index) {
+	std::string tracker_tmp;
+	tracker_tmp = str_tracker_path + "bad_tracklist";
+	std::ifstream file_tracker_list(tracker_tmp.c_str());
+	std::istreambuf_iterator<char> beg(file_tracker_list), end;
+	std::string tracker_list(beg, end);
+	file_tracker_list.close();
+
+	if (tracker_list.empty()) {
+		return false;
+	}
+
+	// get cur_index
+	std::string::size_type pos = tracker_list.find("*");
+	if (pos != -1) {
+		cur_index = atoi(tracker_list.substr(0, pos).c_str());
+		tracker_list = tracker_list.substr(pos + 1);
+	}
+	else {
+		return false;
+	}
+
+	char* ch_list = new char[strlen(tracker_list.c_str()) + 1];
+	strcpy(ch_list, tracker_list.c_str());
+	std::string pattern_list = "#";
+
+	char* tmp_list = strtok(ch_list, pattern_list.c_str());
+	while (tmp_list != NULL)
+	{
+		std::string tracker_url(tmp_list);
+		Bad_Tracker_List bad_tracker_data;
+		bad_tracker_data.tracker_url = tracker_url;
+		bad_trackerlist.push_back(bad_tracker_data);
+
+		if (bad_trackerlist.size() == cur_index) {
+			break;
+		}
+
+		tmp_list = strtok(NULL, pattern_list.c_str());
+	}
+
+	if (bad_trackerlist.size() != cur_index) {
+		cur_index = bad_trackerlist.size();
+	}
+
+	return true;
+}
+
+bool SaveBadTrackerList(std::string str_tracker_path, std::vector<Bad_Tracker_List>& bad_trackerlist, int& cur_index) {
+	// save to bad_tracker_list
+	// num*url#url#url
+  
+	std::string write_data = std::to_string(cur_index) + "*";
+	std::string tracker_list_file_tmp;
+	tracker_list_file_tmp = str_tracker_path + "bad_tracklist_tmp";
+	std::fstream sfile(tracker_list_file_tmp, std::ios::app | std::ios::out | std::ios_base::binary);
+
+	for (int n = 0; n < bad_trackerlist.size(); n++) {
+		write_data = write_data + bad_trackerlist[n].tracker_url + "#";
+	}
+
+	sfile.write(write_data.c_str(), write_data.size());
+	sfile.close();
+
+	std::string tracker_list_file = str_tracker_path + "bad_tracklist";
+	remove(tracker_list_file.c_str());
+	rename(tracker_list_file_tmp.c_str(), tracker_list_file.c_str());
+
+	return true;
+}
+
 bool comp(const Tracker_Data& a, const Tracker_Data& b) {
 	return a.peers > b.peers;
 }
@@ -633,6 +757,10 @@ TORRENT_TEST(http_peers)
 	tracker_list_file_tmp = str_tracker_path + "tracker_list_tmp";
 	remove(tracker_list_file_tmp.c_str());
 
+	std::vector<Bad_Tracker_List> bad_trackerlist;
+	int cur_index = 0;
+	GetBadTrackerList(str_tracker_path, bad_trackerlist, cur_index);
+
 	bool b_quit = false;
 	while (!b_quit) {
 #ifdef _WIN32
@@ -681,6 +809,12 @@ TORRENT_TEST(http_peers)
 
 				while (ncount > 0) {
 					ncount--;
+
+					if (true == FindInBadTrackerList(bad_trackerlist, trackers[ncount].url)) {
+						// find in bad tracker list
+						continue;
+					}
+
 					ti->clear_trackers();
 					ti->add_tracker(trackers[ncount].url, 0);
 
@@ -711,6 +845,7 @@ TORRENT_TEST(http_peers)
 
 							std::this_thread::sleep_for(lt::milliseconds(100));
 						}
+
 						s->remove_torrent(h);
 						s.reset();
 					}
@@ -732,18 +867,14 @@ TORRENT_TEST(http_peers)
 						addp.save_path = "360_http_or_https_tmp";
 						torrent_handle h = s->add_torrent(addp);
 
-						lt::torrent_status status = h.status();
-						TEST_CHECK(status.current_tracker.empty());
-
 						// wait to hit the tracker
 						wait_for_alert(*s, tracker_reply_alert::alert_type, "s", pop_alerts::pop_all, lt::seconds(3));
-
-						// status ?
-						status = h.status();
 
 						s->remove_torrent(h);
 						s.reset();
 					}
+
+					CheckBadTrackerList(str_tracker_path, bad_trackerlist, cur_index, trackers[ncount].url);
 				}
 
 				MakeTrackerList(str_tracker_path);
@@ -764,6 +895,8 @@ TORRENT_TEST(http_peers)
 		tracker_list_file = str_tracker_path + "tracker_list";
 		remove(tracker_list_file.c_str());
 		rename(tracker_list_file_tmp.c_str(), tracker_list_file.c_str());
+
+		SaveBadTrackerList(str_tracker_path, bad_trackerlist, cur_index);
 
 		std::printf("get tracker over\n");
 
