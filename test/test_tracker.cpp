@@ -626,10 +626,7 @@ TORRENT_TEST(http_peers)
 
 	std::string tracker_list_file_tmp;
 	tracker_list_file_tmp = str_tracker_path + "tracker_list_tmp";
-	std::string tracker_tmp;
-	tracker_tmp = str_tracker_path + "tracker_tmp";
 	remove(tracker_list_file_tmp.c_str());
-	remove(tracker_tmp.c_str());
 
 	bool b_quit = false;
 	while (!b_quit) {
@@ -643,12 +640,14 @@ TORRENT_TEST(http_peers)
 		std::string find_path = str_torrent_path + "*.torrent";
 #ifdef _WIN32
 		handle = _findfirst(find_path.c_str(), &fileinfo);    // 查找目录中的第一个文件
-		if (handle == -1)
-			printf("torrent_path error : %s\n", find_path.c_str());
+		if (handle == -1) {
 #else
-		if (!(pdir = opendir(find_path.c_str())))
-			printf("torrent_path error : %s\n", find_path.c_str());
+		if (!(pdir = opendir(find_path.c_str()))) {
 #endif
+			printf("torrent_path error : %s\n", find_path.c_str());
+			std::this_thread::sleep_for(lt::milliseconds(60 * 1000));
+			continue;
+		}
 
 #ifdef _WIN32
 		do
@@ -662,6 +661,10 @@ TORRENT_TEST(http_peers)
 				std::string filename = ptr->d_name;
 #endif
 				printf("%s\n", filename.c_str());
+
+				std::string tracker_tmp;
+				tracker_tmp = str_tracker_path + "tracker_tmp";
+				remove(tracker_tmp.c_str());
 
 				lt::error_code ec;
 				std::string torrent = str_torrent_path;
