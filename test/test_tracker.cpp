@@ -56,7 +56,11 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <iostream>
 #include <cstring>
+#ifdef _WIN32
 #include <io.h>
+#else
+#include <dirent.h>
+#endif
 #include <tchar.h>
 #include <direct.h>
 #include <stdio.h>
@@ -640,94 +644,123 @@ TORRENT_TEST(http_peers)
 
 	bool b_quit = false;
 	while (!b_quit) {
+#ifdef _WIN32
 		intptr_t handle;
 		_finddata_t fileinfo;
+#else
+		DIR* pdir;
+		struct dirent* ptr;
+#endif
 		std::string find_path = str_torrent_path + "*.torrent";
+#ifdef _WIN32
 		handle = _findfirst(find_path.c_str(), &fileinfo);    // 查找目录中的第一个文件
 		if (handle == -1)
 			printf("torrent_path error : %s\n", find_path.c_str());
+#else
+		if (!(pdir = opendir(find_path.c_str())))
+			printf("torrent_path error : %s\n", find_path.c_str());
+#endif
+
+#ifdef _WIN32
 		do
 		{
-			printf("%s\n", fileinfo.name);
+			if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0) {
+				std::string filename = fileinfo.name;
 
-			lt::error_code ec;
-			std::string torrent = str_torrent_path;
-			torrent = torrent + fileinfo.name;
-			auto ti = std::make_shared<lt::torrent_info>(torrent, ec);
-			std::vector<announce_entry> const trackers = ti->trackers();
-			int ncount = trackers.size();
+#else
+		while ((ptr = readdir(pdir)) != 0) {
+			if (strcmp(ptr->d_name, ".") != 0 && strcmp(ptr->d_name, "..") != 0) {
+				std::string filename = ptr->d_name;
+#endif
+				printf("%s\n", filename.c_str());
 
-			while (ncount > 0) {
-				ncount--;
-				ti->clear_trackers();
-				ti->add_tracker(trackers[ncount].url, 0);
+				lt::error_code ec;
+				std::string torrent = str_torrent_path;
+				torrent = torrent + filename;
+				auto ti = std::make_shared<lt::torrent_info>(torrent, ec);
+				std::vector<announce_entry> const trackers = ti->trackers();
+				int ncount = trackers.size();
 
-				int type = 0;
-				type = CheckUrlType(trackers[ncount].url);
+				while (ncount > 0) {
+					ncount--;
+					ti->clear_trackers();
+					ti->add_tracker(trackers[ncount].url, 0);
 
-				if (type == 0) {
-					settings_pack pack = settings();
-					pack.set_bool(settings_pack::announce_to_all_trackers, true);
-					pack.set_bool(settings_pack::announce_to_all_tiers, true);
-					auto s = std::make_unique<lt::session>(pack);
+					int type = 0;
+					type = CheckUrlType(trackers[ncount].url);
 
-					add_torrent_params addp;
-					addp.flags &= ~torrent_flags::paused;
-					addp.flags &= ~torrent_flags::stop_when_ready;
-					addp.ti = ti;
-					addp.save_path = "360_udp_tmp";
-					torrent_handle h = s->add_torrent(addp);
+					if (type == 0) {
+						settings_pack pack = settings();
+						pack.set_bool(settings_pack::announce_to_all_trackers, true);
+						pack.set_bool(settings_pack::announce_to_all_tiers, true);
+						auto s = std::make_unique<lt::session>(pack);
 
-					tcp::endpoint peer_ep;
-					for (int i = 0; i < 20; ++i)
-					{
-						bool nret = print_alerts(*s, "s", false, false, std::bind(&connect_alert, _1, std::ref(peer_ep)));
+						add_torrent_params addp;
+						addp.flags &= ~torrent_flags::paused;
+						addp.flags &= ~torrent_flags::stop_when_ready;
+						addp.ti = ti;
+						addp.save_path = "360_udp_tmp";
+						torrent_handle h = s->add_torrent(addp);
 
-						if (nret == true) {
-							break;
+						tcp::endpoint peer_ep;
+						for (int i = 0; i < 20; ++i)
+						{
+							bool nret = print_alerts(*s, "s", false, false, std::bind(&connect_alert, _1, std::ref(peer_ep)));
+
+							if (nret == true) {
+								break;
+							}
+
+							std::this_thread::sleep_for(lt::milliseconds(100));
 						}
-
-						std::this_thread::sleep_for(lt::milliseconds(100));
+						s->remove_torrent(h);
+						s.reset();
 					}
-					s->remove_torrent(h);
-					s.reset();
+					else if (type == 1) {
+						settings_pack pack = settings();
+						pack.set_bool(settings_pack::announce_to_all_trackers, true);
+						pack.set_bool(settings_pack::announce_to_all_tiers, false);
+						pack.set_int(settings_pack::tracker_completion_timeout, 2);
+						pack.set_int(settings_pack::tracker_receive_timeout, 1);
+						pack.set_str(settings_pack::listen_interfaces, "0.0.0.0:39775");
+
+						auto s = std::make_unique<lt::session>(pack);
+
+						add_torrent_params addp;
+						addp.flags &= ~torrent_flags::paused;
+						addp.flags &= ~torrent_flags::stop_when_ready;
+
+						addp.ti = ti;
+						addp.save_path = "360_http_or_https_tmp";
+						torrent_handle h = s->add_torrent(addp);
+
+						lt::torrent_status status = h.status();
+						TEST_CHECK(status.current_tracker.empty());
+
+						// wait to hit the tracker
+						wait_for_alert(*s, tracker_reply_alert::alert_type, "s", pop_alerts::pop_all, lt::seconds(3));
+
+						// status ?
+						status = h.status();
+
+						s->remove_torrent(h);
+						s.reset();
+					}
 				}
-				else if (type == 1) {
-					settings_pack pack = settings();
-					pack.set_bool(settings_pack::announce_to_all_trackers, true);
-					pack.set_bool(settings_pack::announce_to_all_tiers, false);
-					pack.set_int(settings_pack::tracker_completion_timeout, 2);
-					pack.set_int(settings_pack::tracker_receive_timeout, 1);
-					pack.set_str(settings_pack::listen_interfaces, "0.0.0.0:39775");
 
-					auto s = std::make_unique<lt::session>(pack);
-
-					add_torrent_params addp;
-					addp.flags &= ~torrent_flags::paused;
-					addp.flags &= ~torrent_flags::stop_when_ready;
-
-					addp.ti = ti;
-					addp.save_path = "360_http_or_https_tmp";
-					torrent_handle h = s->add_torrent(addp);
-
-					lt::torrent_status status = h.status();
-					TEST_CHECK(status.current_tracker.empty());
-
-					// wait to hit the tracker
-					wait_for_alert(*s, tracker_reply_alert::alert_type, "s", pop_alerts::pop_all, lt::seconds(3));
-
-					// status ?
-					status = h.status();
-
-					s->remove_torrent(h);
-					s.reset();
-				}
+				MakeTrackerList(str_tracker_path);
 			}
-
-			MakeTrackerList(str_tracker_path);
+#ifdef _WIN32
 		} while (!_findnext(handle, &fileinfo));
+#else
+    }
+#endif
 
+#ifdef _WIN32
 		_findclose(handle);
+#else
+		closedir(pdir);
+#endif
 
 		std::string tracker_list_file;
 		tracker_list_file = str_tracker_path + "tracker_list";
