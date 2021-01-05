@@ -651,10 +651,11 @@ namespace libtorrent {
 #ifdef _WIN32
 			::GetModuleFileName(NULL, curr_path, MAX_PATH);
 			(_tcsrchr(curr_path, '\\'))[1] = 0;
+			sprintf(curr_path, "%s\\tracker_path\\tracker_tmp", curr_path);
 #else	
 			getcwd(curr_path, 1024);
+			sprintf(curr_path, "%s/tracker_path/tracker_tmp", curr_path);
 #endif
-			sprintf(curr_path, "%s\\tracker_path\\tracker_tmp", curr_path);
 
 			std::string write_data = tracker_req().url + "*" + aux::to_hex(tracker_req().info_hash) + "*"
 				+ std::to_string(num_peers) + "*" + std::to_string(resp.complete)

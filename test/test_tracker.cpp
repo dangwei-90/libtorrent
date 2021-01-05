@@ -589,14 +589,19 @@ TORRENT_TEST(http_peers)
 	// 4. 可sleep
 
 	char curr_path[1024];
+#ifdef _WIN32
 	char torrent_path[] = "torrent_path\\";
 	char tracker_path[] = "tracker_path\\";
-
+#else
+	char torrent_path[] = "torrent_path/";
+	char tracker_path[] = "tracker_path/";
+#endif
 #ifdef _WIN32
 	::GetModuleFileName(NULL, curr_path, MAX_PATH);
 	(_tcsrchr(curr_path, '\\'))[1] = 0;
 #else	
 	getcwd(curr_path, 1024);
+	sprintf(curr_path, "%s/", curr_path);
 #endif
 
 	std::string str_torrent_path = curr_path;
@@ -637,14 +642,15 @@ TORRENT_TEST(http_peers)
 		DIR* pdir;
 		struct dirent* ptr;
 #endif
-		std::string find_path = str_torrent_path + "*.torrent";
 #ifdef _WIN32
+		std::string find_path = str_torrent_path + "*.torrent";
 		handle = _findfirst(find_path.c_str(), &fileinfo);    // 查找目录中的第一个文件
 		if (handle == -1) {
 #else
+		std::string find_path = str_torrent_path;
 		if (!(pdir = opendir(find_path.c_str()))) {
 #endif
-			printf("torrent_path error : %s\n", find_path.c_str());
+			printf("torrent_path is empty: %s\n", find_path.c_str());
 			std::this_thread::sleep_for(lt::milliseconds(60 * 1000));
 			continue;
 		}

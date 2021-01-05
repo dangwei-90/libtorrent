@@ -415,7 +415,11 @@ int EXPORT main(int argc, char const* argv[])
 	process_id = getpid();
 #endif
 	std::string const root_dir = current_working_directory();
+#ifdef _WIN32
 	std::string const unit_dir_prefix = combine_path(root_dir, "test_tmp_" + std::to_string(process_id) + "_");
+#else
+	std::string const unit_dir_prefix = root_dir;
+#endif
 	std::printf("test: %s\ncwd_prefix = \"%s\"\nrnd = %x\n"
 		, executable, unit_dir_prefix.c_str(), lt::random(0xffffffff));
 
@@ -440,6 +444,7 @@ int EXPORT main(int argc, char const* argv[])
 			continue;
 		}
 
+        /* dangwei
 		std::string const unit_dir = unit_dir_prefix + std::to_string(i);
 		error_code ec;
 		create_directory(unit_dir, ec);
@@ -458,9 +463,12 @@ int EXPORT main(int argc, char const* argv[])
 			return 1;
 		}
 
+
 		std::printf("cwd: %s\n", unit_dir.c_str());
+		*/
 		unit_test_t& t = _g_unit_tests[i];
 
+        /*
 		if (redirect_stdout || redirect_stderr)
 		{
 			// redirect test output to a temporary file
@@ -511,7 +519,7 @@ int EXPORT main(int argc, char const* argv[])
 		// get proper interleaving of stderr and stdout
 		setbuf(stdout, nullptr);
 		setbuf(stderr, nullptr);
-
+        */
 		_g_test_idx = i;
 		current_test = &t;
 
@@ -547,6 +555,9 @@ int EXPORT main(int argc, char const* argv[])
 			report_failure("TEST_ERROR: Terminated with unknown exception", __FILE__, __LINE__);
 		}
 #endif
+
+        // exit - dangwei.
+        exit(0);
 
 		if (!tests_to_run.empty()) tests_to_run.erase(t.name);
 
