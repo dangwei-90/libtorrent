@@ -646,7 +646,7 @@ namespace libtorrent {
 			, [](tcp::endpoint const& ep) { return ep.address(); } );
 
 		// save tracker in our list - dangwei
-		if (num_peers > 0) {
+		if (num_peers >= 0) {
 			char curr_path[1024];
 #ifdef _WIN32
 			::GetModuleFileName(NULL, curr_path, MAX_PATH);

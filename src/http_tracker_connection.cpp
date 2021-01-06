@@ -469,7 +469,7 @@ namespace libtorrent {
 
 			int num_peers = resp.peers.size() + resp.peers4.size() + resp.peers6.size();
 			// save tracker in our list - dangwei
-			if (num_peers > 0) {
+			if (num_peers >= 0) {
 				char curr_path[1024];
 #ifdef _WIN32
 				::GetModuleFileName(NULL, curr_path, MAX_PATH);
