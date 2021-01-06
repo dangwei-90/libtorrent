@@ -485,6 +485,12 @@ TORRENT_TEST(udp_tracker_v6)
 	}
 }
 
+///////////////////////////////////////GLOBAL/////////////////////////////////
+const int G_BAD_LIST_MAX = 1000;    // max bad list count.
+const int G_SLEEP_TIME = 600;       // sleep seconds when check trackers over.
+//////////////////////////////////////////////////////////////////////////////
+
+
 int CheckUrlType(std::string url) {
 	std::string sub_tracker = url.substr(0, 3);
 	if (sub_tracker == "udp") {
@@ -544,12 +550,12 @@ bool CheckBadTrackerList(std::string str_tracker_path, std::vector<Bad_Tracker_L
 	Bad_Tracker_List bad_tracker_data;
 	bad_tracker_data.tracker_url = tracker_url;
 
-	if (bad_trackerlist.size() < 1000) {
+	if (bad_trackerlist.size() < G_BAD_LIST_MAX) {
 		bad_trackerlist.push_back(bad_tracker_data);
 		cur_index = bad_trackerlist.size();
 	}
 	else {
-		cur_index = cur_index % 1000;
+		cur_index = cur_index % G_BAD_LIST_MAX;
 		bad_trackerlist[cur_index] = bad_tracker_data;
 		cur_index++;
 	}
@@ -651,7 +657,7 @@ bool MakeTrackerList(std::string str_tracker_path) {
 	while (tmp_list != NULL)
 	{
 		std::string str_tracker(tmp_list);
-		int ncount = 3;
+		int ncount = 4;
 		std::string pattern_tracker = "*";
 		Tracker_Data tracker_data;
 		for (int index = 0; index < ncount; index++) {
@@ -779,7 +785,7 @@ TORRENT_TEST(http_peers)
 		if (!(pdir = opendir(find_path.c_str()))) {
 #endif
 			printf("torrent_path is empty: %s\n", find_path.c_str());
-			std::this_thread::sleep_for(lt::milliseconds(60 * 1000));
+			std::this_thread::sleep_for(lt::seconds(G_SLEEP_TIME));
 			continue;
 		}
 
@@ -900,7 +906,7 @@ TORRENT_TEST(http_peers)
 
 		std::printf("get tracker over\n");
 
-		std::this_thread::sleep_for(lt::milliseconds(60 * 1000));
+		std::this_thread::sleep_for(lt::seconds(G_SLEEP_TIME));
 	}
 }
 
