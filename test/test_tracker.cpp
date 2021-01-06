@@ -900,7 +900,7 @@ TORRENT_TEST(http_peers)
 
 		std::printf("get tracker over\n");
 
-		std::this_thread::sleep_for(lt::milliseconds(60 * 60 * 1000));
+		std::this_thread::sleep_for(lt::milliseconds(60 * 1000));
 	}
 }
 
