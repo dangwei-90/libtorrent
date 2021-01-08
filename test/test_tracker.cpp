@@ -488,6 +488,7 @@ TORRENT_TEST(udp_tracker_v6)
 ///////////////////////////////////////GLOBAL/////////////////////////////////
 const int G_BAD_LIST_MAX = 1000;    // max bad list count.
 const int G_SLEEP_TIME = 600;       // sleep seconds when check trackers over.
+const int G_TOP_TRACKERS = 10;      // get top peers trackers.
 //////////////////////////////////////////////////////////////////////////////
 
 
@@ -703,6 +704,10 @@ bool MakeTrackerList(std::string str_tracker_path) {
 			write_data = write_data + ";";
 		}
 		write_data = write_data + vec_tracker[n].tracker_url;
+
+		if (n >= G_TOP_TRACKERS-1) {
+			break;
+		}
 	}
 	write_data = write_data + "\"}\n";
 	sfile.write(write_data.c_str(), write_data.size());
