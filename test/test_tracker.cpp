@@ -716,6 +716,75 @@ bool MakeTrackerList(std::string str_tracker_path) {
 	return true;
 }
 
+void MakeAllTrackerList(std::string str_torrent_path, std::vector<std::string> &all_tracker_list) {
+	// get from https://trackerslist.com/best.txt?utm_source=cyhour.com
+	all_tracker_list.push_back("udp://47.ip-51-68-199.eu:6969/announce");
+	all_tracker_list.push_back("udp://6rt.tace.ru:80/announce");
+	all_tracker_list.push_back("udp://9.rarbg.me:2710/announce");
+	all_tracker_list.push_back("udp://aaa.army:8866/announce");
+	all_tracker_list.push_back("udp://app.icon256.com:8000/announce");
+
+	// make all_trackerlist
+#ifdef _WIN32
+	intptr_t handle;
+	_finddata_t fileinfo;
+#else
+	DIR* pdir;
+	struct dirent* ptr;
+#endif
+#ifdef _WIN32
+	std::string find_path = str_torrent_path + "*.torrent";
+	handle = _findfirst(find_path.c_str(), &fileinfo);    // 查找目录中的第一个文件
+	if (handle == -1) {
+#else
+	std::string find_path = str_torrent_path;
+	if (!(pdir = opendir(find_path.c_str()))) {
+#endif
+		printf("torrent_path is empty: %s\n", find_path.c_str());
+		return;
+	}
+#ifdef _WIN32
+	do
+	{
+		if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0) {
+			std::string filename = fileinfo.name;
+#else
+	while ((ptr = readdir(pdir)) != 0) {
+		if (strcmp(ptr->d_name, ".") != 0 && strcmp(ptr->d_name, "..") != 0) {
+			std::string filename = ptr->d_name;
+#endif
+			printf("%s\n", filename.c_str());
+
+			lt::error_code ec;
+			std::string torrent = str_torrent_path;
+			torrent = torrent + filename;
+			auto ti = std::make_shared<lt::torrent_info>(torrent, ec);
+			std::vector<announce_entry> const trackers = ti->trackers();
+			int ncount = trackers.size();
+			for (int n = 0; n < trackers.size(); n++) {
+				std::vector<std::string>::iterator result = std::find(all_tracker_list.begin(), all_tracker_list.end(), trackers[n].url);
+				if (result != all_tracker_list.end()) {
+					// find
+					continue;
+				}
+				else {
+					all_tracker_list.push_back(trackers[n].url);
+				}
+			}
+		}
+#ifdef _WIN32
+	} while (!_findnext(handle, &fileinfo));
+#else
+	}
+#endif
+
+#ifdef _WIN32
+	_findclose(handle);
+#else
+	closedir(pdir);
+#endif
+}
+
 TORRENT_TEST(http_peers)
 {
 	// 1. 监控 torrent 路径，循环遍历
@@ -774,6 +843,10 @@ TORRENT_TEST(http_peers)
 
 	bool b_quit = false;
 	while (!b_quit) {
+		std::vector<std::string> all_tracker_list;
+		MakeAllTrackerList(str_torrent_path, all_tracker_list);
+
+		// make tracker list
 #ifdef _WIN32
 		intptr_t handle;
 		_finddata_t fileinfo;
@@ -799,7 +872,6 @@ TORRENT_TEST(http_peers)
 		{
 			if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0) {
 				std::string filename = fileinfo.name;
-
 #else
 		while ((ptr = readdir(pdir)) != 0) {
 			if (strcmp(ptr->d_name, ".") != 0 && strcmp(ptr->d_name, "..") != 0) {
@@ -815,22 +887,25 @@ TORRENT_TEST(http_peers)
 				std::string torrent = str_torrent_path;
 				torrent = torrent + filename;
 				auto ti = std::make_shared<lt::torrent_info>(torrent, ec);
-				std::vector<announce_entry> const trackers = ti->trackers();
-				int ncount = trackers.size();
+
+				// use all tracker list.
+				//std::vector<announce_entry> const trackers = ti->trackers();
+				//int ncount = trackers.size();
+				int ncount = all_tracker_list.size();
 
 				while (ncount > 0) {
 					ncount--;
 
-					if (true == FindInBadTrackerList(bad_trackerlist, trackers[ncount].url)) {
+					if (true == FindInBadTrackerList(bad_trackerlist, all_tracker_list[ncount])) {
 						// find in bad tracker list
 						continue;
 					}
 
 					ti->clear_trackers();
-					ti->add_tracker(trackers[ncount].url, 0);
+					ti->add_tracker(all_tracker_list[ncount], 0);
 
 					int type = 0;
-					type = CheckUrlType(trackers[ncount].url);
+					type = CheckUrlType(all_tracker_list[ncount]);
 
 					if (type == 0) {
 						settings_pack pack = settings();
@@ -885,7 +960,7 @@ TORRENT_TEST(http_peers)
 						s.reset();
 					}
 
-					CheckBadTrackerList(str_tracker_path, bad_trackerlist, cur_index, trackers[ncount].url);
+					CheckBadTrackerList(str_tracker_path, bad_trackerlist, cur_index, all_tracker_list[ncount]);
 				}
 
 				MakeTrackerList(str_tracker_path);
