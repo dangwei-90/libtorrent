@@ -859,12 +859,13 @@ std::string geturl(std::string curr_path, std::string url)
 #endif
 
 void GetBestTrackerListFromUrl(std::string curr_path, std::vector<std::string>& all_tracker_list) {
-#ifdef _WIN32
-	char url[260] = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt";
-	char buf[BUF_SIZE] = { 0 };
-	GetInterNetURLText(url, buf);
-#else
 	std::string url = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt";
+#ifdef _WIN32
+	LPSTR LPurl = const_cast<char*>(url.c_str());
+	char buf[BUF_SIZE] = { 0 };
+	GetInterNetURLText(LPurl, buf);
+	std::string str_trackers_best = buf;
+#else
 	std::string str_trackers_best = geturl(curr_path.c_str(), url.c_str());
 #endif
 	printf("best trackers %s \n", str_trackers_best.c_str());
