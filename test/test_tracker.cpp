@@ -56,19 +56,28 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <iostream>
 #include <cstring>
+#include <stdio.h>
+
 #ifdef _WIN32
 #include <io.h>
-#else
-#include <dirent.h>
-#endif
-#ifdef _WIN32
 #include <tchar.h>
 #include <direct.h>
 #else
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #endif
 #include <stdio.h>
+
+#ifdef _WIN32
+#include <Windows.h>
+#include <wininet.h>
+#include <string>
+#pragma comment(lib, "wininet.lib")
+#define BUF_SIZE 2048
+#else
+
+#endif
 
 using namespace lt;
 using lt::add_torrent_params;
@@ -785,6 +794,59 @@ void MakeAllTrackerList(std::string str_torrent_path, std::vector<std::string> &
 #endif
 }
 
+#ifdef _WIN32
+LPSTR GetInterNetURLText(LPSTR lpcInterNetURL, char* buff)
+{
+	HINTERNET hSession;
+	LPSTR lpResult = NULL;
+	hSession = InternetOpen("WinInet", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+	__try
+	{
+		if (hSession != NULL)
+		{
+			HINTERNET hRequest;
+			hRequest = InternetOpenUrlA(hSession, lpcInterNetURL, NULL, 0, INTERNET_FLAG_RELOAD, 0);
+			__try
+			{
+				if (hRequest != NULL)
+				{
+					DWORD dwBytesRead;
+					char szBuffer[BUF_SIZE] = { 0 };
+
+					if (InternetReadFile(hRequest, szBuffer, BUF_SIZE, &dwBytesRead))
+					{
+						RtlMoveMemory(buff, szBuffer, BUF_SIZE);
+						return 0;
+					}
+				}
+			}
+			__finally
+			{
+				InternetCloseHandle(hRequest);
+			}
+		}
+	}
+	__finally
+	{
+		InternetCloseHandle(hSession);
+	}
+	return lpResult;
+}
+#else
+
+#endif
+
+void GetBestTrackerListFromUrl(std::vector<std::string>& all_tracker_list) {
+	char buf[BUF_SIZE] = { 0 };
+	char url[260] = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt";
+#ifdef _WIN32
+	GetInterNetURLText(url, buf);
+#else
+
+#endif
+	std::string best_trackers = buf;
+}
+
 TORRENT_TEST(http_peers)
 {
 	// 1. ¼à¿Ø torrent Â·¾¶£¬Ñ­»·±éÀú
@@ -844,6 +906,8 @@ TORRENT_TEST(http_peers)
 	bool b_quit = false;
 	while (!b_quit) {
 		std::vector<std::string> all_tracker_list;
+		GetBestTrackerListFromUrl(all_tracker_list);
+
 		MakeAllTrackerList(str_torrent_path, all_tracker_list);
 
 		// make tracker list
