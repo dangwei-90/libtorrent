@@ -841,116 +841,33 @@ LPSTR GetInterNetURLText(LPSTR lpcInterNetURL, char* buff)
 	return lpResult;
 }
 #else
-std::string geturl(char* url)
+std::string geturl(std::string curr_path, std::string url)
 {
-	int cfd;
-	struct sockaddr_in cadd;
-	struct hostent* pURL = NULL;
-	char myurl[BUFSIZE];
-	char* pHost = 0;
-	char host[BUFSIZE], GET[BUFSIZE];
-	char request[BUFSIZE];
-	static char text[BUFSIZE];
-	int i, j;
+	// "wget -c https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt"
+	std::string wgetcmd = "wget -c " + url;
+    system(wgetcmd.c_str());
 
+	std::string trackers_best_path;
+	trackers_best_path = curr_path + "trackers_best.txt";
+	std::ifstream file_trackers_best(trackers_best_path.c_str());
+	std::istreambuf_iterator<char> beg(file_trackers_best), end;
+	std::string str_trackers_best(beg, end);
+	file_trackers_best.close();
 
-	//分离主机中的主机地址和相对路径
-	memset(myurl, 0, BUFSIZE);
-	memset(host, 0, BUFSIZE);
-	memset(GET, 0, BUFSIZE);
-	strcpy(myurl, url);
-	for (pHost = myurl; *pHost != '/' && *pHost != '\0'; ++pHost);
-
-
-	//获取相对路径保存到GET中
-	if ((int)(pHost - myurl) == strlen(myurl))
-	{
-		strcpy(GET, "/");//即url中没有给出相对路径，需要自己手动的在url尾
-//部加上/
-	}
-	else
-	{
-		strcpy(GET, pHost);//地址段pHost到strlen(myurl)保存的是相对路径
-	}
-
-	//将主机信息保存到host中
-	//此处将它置零，即它所指向的内容里面已经分离出了相对路径，剩下的为host信
-//息(从myurl到pHost地址段存放的是HOST)
-	*pHost = '\0';
-	strcpy(host, myurl);
-	//设置socket参数
-	if (-1 == (cfd = socket(AF_INET, SOCK_STREAM, 0)))
-	{
-		printf("create socket failed of client!\n");
-		exit(-1);
-	}
-
-	pURL = gethostbyname(host);//将上面获得的主机信息通过域名解析函数获得域>名信息
-
-	//设置IP地址结构
-	bzero(&cadd, sizeof(struct sockaddr_in));
-	cadd.sin_family = AF_INET;
-	cadd.sin_addr.s_addr = *((unsigned long*)pURL->h_addr_list[0]);
-	cadd.sin_port = htons(80);
-	//向WEB服务器发送URL信息
-	memset(request, 0, BUFSIZE);
-	strcat(request, "GET ");
-	strcat(request, GET);
-	strcat(request, " HTTP/1.1\r\n");//至此为http请求行的信息
-	strcat(request, "HOST: ");
-	strcat(request, host);
-	strcat(request, "\r\n");
-	strcat(request, "Cache-Control: no-cache\r\n\r\n");
-	//连接服务器
-
-
-	int cc;
-	if (-1 == (cc = connect(cfd, (struct sockaddr*)&cadd, (socklen_t)sizeof(cadd))))
-	{
-		printf("connect failed of client!\n");
-		exit(1);
-	}
-	printf("connect success!\n");
-
-	//向服务器发送url请求的request
-	int cs;
-	if (-1 == (cs = send(cfd, request, strlen(request), 0)))
-	{
-		printf("向服务器发送请求的request失败!\n");
-		exit(1);
-	}
-	printf("发送成功,发送的字节数:%d\n", cs);
-
-	//客户端接收服务器的返回信息
-	memset(text, 0, BUFSIZE);
-	int cr;
-	if (-1 == (cr = recv(cfd, text, BUFSIZE, 0)))
-	{
-		printf("recieve failed!\n");
-		exit(1);
-	}
-	else
-	{
-		printf("receive succecc! data: %s \n", text);
-	}
-
-	close(cfd);
-
-	std::string data = text;
-	return data;
+	return str_trackers_best;
 }
-
 #endif
 
-void GetBestTrackerListFromUrl(std::vector<std::string>& all_tracker_list) {
-	char buf[BUF_SIZE] = { 0 };
-	char url[260] = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt";
+void GetBestTrackerListFromUrl(std::string curr_path, std::vector<std::string>& all_tracker_list) {
 #ifdef _WIN32
+	char url[260] = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt";
+	char buf[BUF_SIZE] = { 0 };
 	GetInterNetURLText(url, buf);
 #else
-	std::string buf = geturl(url);
+	std::string url = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt";
+	std::string str_trackers_best = geturl(curr_path.c_str(), url.c_str());
 #endif
-	std::string best_trackers = buf;
+	printf("best trackers %s \n", str_trackers_best.c_str());
 }
 
 TORRENT_TEST(http_peers)
@@ -1012,8 +929,7 @@ TORRENT_TEST(http_peers)
 	bool b_quit = false;
 	while (!b_quit) {
 		std::vector<std::string> all_tracker_list;
-		GetBestTrackerListFromUrl(all_tracker_list);
-
+		GetBestTrackerListFromUrl(curr_path, all_tracker_list);
 		MakeAllTrackerList(str_torrent_path, all_tracker_list);
 
 		// make tracker list
