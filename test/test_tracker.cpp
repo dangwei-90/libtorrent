@@ -734,12 +734,14 @@ bool MakeTrackerList(std::string str_tracker_path) {
 }
 
 void MakeAllTrackerList(std::string str_torrent_path, std::vector<std::string> &all_tracker_list) {
-	// get from https://trackerslist.com/best.txt?utm_source=cyhour.com
-	all_tracker_list.push_back("udp://47.ip-51-68-199.eu:6969/announce");
-	all_tracker_list.push_back("udp://6rt.tace.ru:80/announce");
-	all_tracker_list.push_back("udp://9.rarbg.me:2710/announce");
-	all_tracker_list.push_back("udp://aaa.army:8866/announce");
-	all_tracker_list.push_back("udp://app.icon256.com:8000/announce");
+	if (all_tracker_list.empty()) {
+		// get from https://trackerslist.com/best.txt?utm_source=cyhour.com
+		all_tracker_list.push_back("udp://47.ip-51-68-199.eu:6969/announce");
+		all_tracker_list.push_back("udp://6rt.tace.ru:80/announce");
+		all_tracker_list.push_back("udp://9.rarbg.me:2710/announce");
+		all_tracker_list.push_back("udp://aaa.army:8866/announce");
+		all_tracker_list.push_back("udp://app.icon256.com:8000/announce");
+	}
 
 	// make all_trackerlist
 #ifdef _WIN32
@@ -869,6 +871,21 @@ void GetBestTrackerListFromUrl(std::string curr_path, std::vector<std::string>& 
 	std::string str_trackers_best = geturl(curr_path.c_str(), url.c_str());
 #endif
 	printf("best trackers %s \n", str_trackers_best.c_str());
+
+	// here, all_tracker_list must be empty.
+	if (all_tracker_list.empty()) {
+		std::string pattern_tracker = "\n\n";
+		std::string::size_type pos = str_trackers_best.find(pattern_tracker.c_str());
+		while (pos > 0) {
+			std::string best_tracker_url = str_trackers_best.substr(0, pos);
+			all_tracker_list.push_back(best_tracker_url);
+			str_trackers_best = str_trackers_best.substr(pos + 2);
+			if (str_trackers_best.empty()) {
+				break;
+			}
+			pos = str_trackers_best.find(pattern_tracker.c_str());
+		}
+	}
 }
 
 TORRENT_TEST(http_peers)
