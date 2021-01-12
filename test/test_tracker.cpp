@@ -503,7 +503,7 @@ TORRENT_TEST(udp_tracker_v6)
 }
 
 ///////////////////////////////////////GLOBAL/////////////////////////////////
-const int G_BAD_LIST_MAX = 1000;    // max bad list count.
+const int G_BAD_LIST_MAX = 100;    // max bad list count.
 const int G_SLEEP_TIME = 600;       // sleep seconds when check trackers over.
 const int G_TOP_TRACKERS = 10;      // get top peers trackers.
 //////////////////////////////////////////////////////////////////////////////
@@ -890,6 +890,7 @@ void GetBestTrackerListFromUrl(std::string curr_path, std::vector<std::string>& 
 
 TORRENT_TEST(http_peers)
 {
+#ifdef TRACKER_360
 	// 1. 监控 torrent 路径，循环遍历
 	// 2. 提取 torrent 信息，获取 trackers
 	// 3. 对每个 trackers 遍历
@@ -1092,6 +1093,7 @@ TORRENT_TEST(http_peers)
 
 		std::this_thread::sleep_for(lt::seconds(G_SLEEP_TIME));
 	}
+#endif
 }
 
 TORRENT_TEST(current_tracker)

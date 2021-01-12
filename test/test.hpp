@@ -62,6 +62,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EXPORT
 #endif
 
+// check when build - dangwei.
+#define TRACKER_360  1
+
 void EXPORT report_failure(char const* err, char const* file, int line);
 int EXPORT print_failures();
 int EXPORT test_counter();

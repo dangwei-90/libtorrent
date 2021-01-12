@@ -438,13 +438,16 @@ int EXPORT main(int argc, char const* argv[])
 		if (filter && tests_to_run.count(_g_unit_tests[i].name) == 0)
 			continue;
 
+#ifdef TRACKER_360
 		// run our process. - dangwei
 		char* ch;
 		if (strstr(_g_unit_tests[i].name, "test_tracker.cpp.http_peers") == NULL) {
 			continue;
 		}
+#endif
 
-        /* dangwei
+#ifndef TRACKER_360
+    // todo dangwei
 		std::string const unit_dir = unit_dir_prefix + std::to_string(i);
 		error_code ec;
 		create_directory(unit_dir, ec);
@@ -465,10 +468,11 @@ int EXPORT main(int argc, char const* argv[])
 
 
 		std::printf("cwd: %s\n", unit_dir.c_str());
-		*/
+#endif
+
 		unit_test_t& t = _g_unit_tests[i];
 
-        /*
+#ifndef TRACKER_360
 		if (redirect_stdout || redirect_stderr)
 		{
 			// redirect test output to a temporary file
@@ -519,7 +523,8 @@ int EXPORT main(int argc, char const* argv[])
 		// get proper interleaving of stderr and stdout
 		setbuf(stdout, nullptr);
 		setbuf(stderr, nullptr);
-        */
+#endif
+
 		_g_test_idx = i;
 		current_test = &t;
 
@@ -556,8 +561,10 @@ int EXPORT main(int argc, char const* argv[])
 		}
 #endif
 
-        // exit - dangwei.
-        exit(0);
+#ifdef TRACKER_360
+    // exit - dangwei.
+    exit(0);
+#endif
 
 		if (!tests_to_run.empty()) tests_to_run.erase(t.name);
 
@@ -573,8 +580,10 @@ int EXPORT main(int argc, char const* argv[])
 		if (redirect_stdout && t.output)
 			fclose(t.output);
 
+#ifdef TRACKER_360
 		// break - dangwei
 		break; 
+#endif
 	}
 
 	if (redirect_stdout && old_stdout != -1) dup2(old_stdout, fileno(stdout));
