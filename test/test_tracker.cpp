@@ -949,7 +949,7 @@ TORRENT_TEST(http_peers)
 	while (!b_quit) {
 		std::vector<std::string> all_tracker_list;
 		GetBestTrackerListFromUrl(curr_path, all_tracker_list);
-		MakeAllTrackerList(str_torrent_path, all_tracker_list);
+		// MakeAllTrackerList(str_torrent_path, all_tracker_list);
 
 		// make tracker list
 #ifdef _WIN32
@@ -994,9 +994,18 @@ TORRENT_TEST(http_peers)
 				auto ti = std::make_shared<lt::torrent_info>(torrent, ec);
 
 				// use all tracker list.
-				//std::vector<announce_entry> const trackers = ti->trackers();
-				//int ncount = trackers.size();
-				int ncount = all_tracker_list.size();
+				std::vector<announce_entry> const trackers = ti->trackers();
+				// int ncount = trackers.size();
+				std::vector<std::string> this_torrent_trackers;
+				for (int n = 0; n < trackers.size(); n++) {
+					this_torrent_trackers.push_back(trackers[n].url.c_str());
+				}
+				for (int n = 0; n < all_tracker_list.size(); n++) {
+					this_torrent_trackers.push_back(all_tracker_list[n].c_str());
+				}
+
+				int ncount = this_torrent_trackers.size();
+				//int ncount = all_tracker_list.size();
 
 				while (ncount > 0) {
 					ncount--;
