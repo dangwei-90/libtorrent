@@ -1010,16 +1010,16 @@ TORRENT_TEST(http_peers)
 				while (ncount > 0) {
 					ncount--;
 
-					if (true == FindInBadTrackerList(bad_trackerlist, all_tracker_list[ncount])) {
+					if (true == FindInBadTrackerList(bad_trackerlist, this_torrent_trackers[ncount])) {
 						// find in bad tracker list
 						continue;
 					}
 
 					ti->clear_trackers();
-					ti->add_tracker(all_tracker_list[ncount], 0);
+					ti->add_tracker(this_torrent_trackers[ncount], 0);
 
 					int type = 0;
-					type = CheckUrlType(all_tracker_list[ncount]);
+					type = CheckUrlType(this_torrent_trackers[ncount]);
 
 					if (type == 0) {
 						settings_pack pack = settings();
@@ -1074,7 +1074,7 @@ TORRENT_TEST(http_peers)
 						s.reset();
 					}
 
-					CheckBadTrackerList(str_tracker_path, bad_trackerlist, cur_index, all_tracker_list[ncount]);
+					CheckBadTrackerList(str_tracker_path, bad_trackerlist, cur_index, this_torrent_trackers[ncount]);
 				}
 
 				MakeTrackerList(str_tracker_path);
