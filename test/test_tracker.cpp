@@ -548,6 +548,17 @@ bool FindInBadTrackerList(std::vector<Bad_Tracker_List>& bad_trackerlist, std::s
 	}
 }
 
+bool FindInBestTrackerList(std::vector<std::string> best_trackerlist, std::string tracker_url) {
+	std::vector<std::string>::iterator result = std::find(best_trackerlist.begin(), best_trackerlist.end(), tracker_url);
+	if (result != best_trackerlist.end()) {
+		// find
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
 bool CheckBadTrackerList(std::string str_tracker_path, std::vector<Bad_Tracker_List>& bad_trackerlist, int& cur_index, std::string tracker_url) {
 	std::string tracker_tmp;
 	tracker_tmp = str_tracker_path + "tracker_tmp";
@@ -1074,7 +1085,10 @@ TORRENT_TEST(http_peers)
 						s.reset();
 					}
 
-					CheckBadTrackerList(str_tracker_path, bad_trackerlist, cur_index, this_torrent_trackers[ncount]);
+					// 黑名单不对最优列表拉黑
+					if (!FindInBestTrackerList(all_tracker_list, this_torrent_trackers[ncount])) {
+						CheckBadTrackerList(str_tracker_path, bad_trackerlist, cur_index, this_torrent_trackers[ncount]);
+					}
 				}
 
 				MakeTrackerList(str_tracker_path);
