@@ -1093,8 +1093,18 @@ TORRENT_TEST(http_peers)
 
 		std::string tracker_list_file;
 		tracker_list_file = str_tracker_path + "tracker_list";
-		remove(tracker_list_file.c_str());
-		rename(tracker_list_file_tmp.c_str(), tracker_list_file.c_str());
+
+#ifdef _WIN32
+		if (_access(tracker_list_file_tmp.c_str(), 0) == -1) {
+#else
+		if (access(tracker_list_file_tmp.c_str(), F_OK) == -1) {
+#endif
+			// have no tmp. do nothing.
+		}
+		else {
+			remove(tracker_list_file.c_str());
+			rename(tracker_list_file_tmp.c_str(), tracker_list_file.c_str());
+		}
 
 		SaveBadTrackerList(str_tracker_path, bad_trackerlist, cur_index);
 
