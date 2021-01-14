@@ -559,7 +559,9 @@ bool FindInBestTrackerList(std::vector<std::string> best_trackerlist, std::strin
 	}
 }
 
-bool CheckBadTrackerList(std::string str_tracker_path, std::vector<Bad_Tracker_List>& bad_trackerlist, int& cur_index, std::string tracker_url) {
+bool CheckBadTrackerList(std::vector<std::string> best_trackerlist, std::string str_tracker_path, 
+	std::vector<Bad_Tracker_List>& bad_trackerlist, int& cur_index, std::string tracker_url) {
+
 	std::string tracker_tmp;
 	tracker_tmp = str_tracker_path + "tracker_tmp";
 	std::ifstream file_tracker_list(tracker_tmp.c_str());
@@ -574,6 +576,11 @@ bool CheckBadTrackerList(std::string str_tracker_path, std::vector<Bad_Tracker_L
 			// success, not need push.
 			return true;
 		}
+	}
+
+	// 黑名单不对最优列表拉黑
+	if (FindInBestTrackerList(best_trackerlist, tracker_url)) {
+		return true;
 	}
 
 	Bad_Tracker_List bad_tracker_data;
@@ -1086,9 +1093,7 @@ TORRENT_TEST(http_peers)
 					}
 
 					// 黑名单不对最优列表拉黑
-					if (!FindInBestTrackerList(all_tracker_list, this_torrent_trackers[ncount])) {
-						CheckBadTrackerList(str_tracker_path, bad_trackerlist, cur_index, this_torrent_trackers[ncount]);
-					}
+					CheckBadTrackerList(all_tracker_list, str_tracker_path, bad_trackerlist, cur_index, this_torrent_trackers[ncount]);
 				}
 
 				MakeTrackerList(str_tracker_path);
