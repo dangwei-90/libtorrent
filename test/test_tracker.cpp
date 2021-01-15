@@ -1129,6 +1129,10 @@ TORRENT_TEST(http_peers)
 
 		std::printf("get tracker over\n");
 
+#ifdef RUN_ONCE
+		exit(0);
+#endif
+
 		std::this_thread::sleep_for(lt::seconds(G_SLEEP_TIME));
 	}
 #endif
